@@ -130,7 +130,7 @@ pm2 status
 sudo systemctl status nginx
 
 # 测试应用访问
-curl -I http://localhost:3000
+curl -I http://localhost:3010
 curl -I https://learningplan.cflp.ai
 ```
 
