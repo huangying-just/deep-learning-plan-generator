@@ -150,13 +150,13 @@ export async function POST(request: NextRequest) {
     // 调用 OpenRouter API
     const client = getClient();
     const response = await client.chat.completions.create({
-      model: "google/gemini-2.0-flash-exp",
+      model: "google/gemini-2.5-flash-lite-preview-06-17",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 4000,
+      max_tokens: 10000,
     });
 
     const content = response.choices[0]?.message?.content;
