@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
-import { GeneratePlanRequest, GeneratePlanResponse } from '@/types';
 
-// 初始化 OpenAI 客户端（用于 OpenRouter）
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+// 类型定义
+interface GeneratePlanRequest {
+  topic: string;
+}
+
+// 延迟初始化 OpenAI 客户端
+function getClient() {
+  return new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
+  });
+}
 
 // 速率限制存储（简单的内存存储，生产环境应使用 Redis）
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -103,48 +109,38 @@ const SYSTEM_PROMPT = `
 第二步：基于你填入后的System Prompt，输出针对性的学习训练方案。
 
 约束条件：
-- 第一步无需输出，仅输出第二步生成的结果，无需任何解释性说明
-- 输出开头第一句必须是：# {提炼8个字内的标题}
-- 输出必须是结构化的 Markdown 格式
-- 内容要详实具体，可执行性强
+
+第一步无需输出，仅输出第二步生成的结果，无需任何解释性说明。
+输出开头第一句必须是：# {提炼8个字内的标题}
 `;
 
 export async function POST(request: NextRequest) {
   try {
-    // 获取请求体
-    const body: GeneratePlanRequest = await request.json();
-    const { topic } = body;
-
-    // 验证输入
-    if (!topic || topic.trim().length === 0) {
-      return NextResponse.json(
-        { error: '请输入要学习的主题' } as GeneratePlanResponse,
-        { status: 400 }
-      );
-    }
-
-    if (topic.length > 100) {
-      return NextResponse.json(
-        { error: '主题长度不能超过100个字符' } as GeneratePlanResponse,
-        { status: 400 }
-      );
-    }
-
-    // 检查 API 密钥
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error('OPENROUTER_API_KEY 未设置');
-      return NextResponse.json(
-        { error: '服务配置错误，请联系管理员' } as GeneratePlanResponse,
-        { status: 500 }
-      );
-    }
-
-    // 速率限制检查
+    // 获取客户端 IP 并检查速率限制
     const clientIP = getClientIP(request);
     if (!checkRateLimit(clientIP)) {
       return NextResponse.json(
-        { error: '请求过于频繁，请稍后再试（每小时限制5次）' } as GeneratePlanResponse,
+        { error: '请求过于频繁，请稍后再试' },
         { status: 429 }
+      );
+    }
+
+    // 解析请求体
+    const body: GeneratePlanRequest = await request.json();
+    
+    // 验证输入
+    if (!body.topic || typeof body.topic !== 'string') {
+      return NextResponse.json(
+        { error: '请输入有效的学习主题' },
+        { status: 400 }
+      );
+    }
+
+    const topic = body.topic.trim();
+    if (topic.length < 2 || topic.length > 100) {
+      return NextResponse.json(
+        { error: '主题长度应在2-100个字符之间' },
+        { status: 400 }
       );
     }
 
@@ -152,58 +148,49 @@ export async function POST(request: NextRequest) {
     const userPrompt = `请严格按照你接收到的System Prompt的指示，为我生成一份关于 "${topic}" 的深度精通学习方案。`;
 
     // 调用 OpenRouter API
+    const client = getClient();
     const response = await client.chat.completions.create({
-      model: "google/gemini-2.5-flash-lite-preview-06-17",
+      model: "google/gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 10000,
+      max_tokens: 4000,
     });
 
-    // 提取生成的内容
-    const generatedPlan = response.choices[0]?.message?.content;
+    const content = response.choices[0]?.message?.content;
     
-    if (!generatedPlan) {
+    if (!content) {
       return NextResponse.json(
-        { error: '生成方案失败，请重试' } as GeneratePlanResponse,
+        { error: '生成失败，请重试' },
         { status: 500 }
       );
     }
 
-    // 基础格式验证
-    if (!generatedPlan.startsWith('#') || generatedPlan.length < 100) {
-      console.warn('生成的内容格式可能不正确:', generatedPlan.substring(0, 100));
-    }
-
-    return NextResponse.json(
-      { plan: generatedPlan } as GeneratePlanResponse,
-      { status: 200 }
-    );
+    return NextResponse.json({ plan: content });
 
   } catch (error) {
-    console.error('API 调用错误:', error);
+    console.error('Error generating plan:', error);
     
     // 根据错误类型返回不同的错误信息
     if (error instanceof Error) {
       if (error.message.includes('API key')) {
         return NextResponse.json(
-          { error: 'API 密钥配置错误' } as GeneratePlanResponse,
+          { error: '服务配置错误，请联系管理员' },
           { status: 500 }
         );
       }
-      
-      if (error.message.includes('timeout')) {
+      if (error.message.includes('rate limit')) {
         return NextResponse.json(
-          { error: '请求超时，请重试' } as GeneratePlanResponse,
-          { status: 504 }
+          { error: '请求过于频繁，请稍后再试' },
+          { status: 429 }
         );
       }
     }
 
     return NextResponse.json(
-      { error: '服务暂时不可用，请稍后重试' } as GeneratePlanResponse,
+      { error: '生成失败，请重试' },
       { status: 500 }
     );
   }

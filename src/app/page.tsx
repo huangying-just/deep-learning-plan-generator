@@ -6,7 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, BookOpen, Sparkles, Target } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import type { GeneratePlanRequest, GeneratePlanResponse } from '@/types';
+// 类型定义
+interface GeneratePlanRequest {
+  topic: string;
+}
+
+interface GeneratePlanResponse {
+  plan?: string;
+  error?: string;
+}
 
 export default function HomePage() {
   const [topic, setTopic] = useState('');
