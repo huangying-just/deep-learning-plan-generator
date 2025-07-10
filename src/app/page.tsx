@@ -41,7 +41,7 @@ export default function HomePage() {
         throw new Error(data.error || '生成方案失败');
       }
 
-      setPlan(data.plan);
+      setPlan(data.plan || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : '发生未知错误');
     } finally {

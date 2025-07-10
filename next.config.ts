@@ -5,8 +5,10 @@ const nextConfig: NextConfig = {
   compress: true,
   
   // 允许外部访问
+  serverExternalPackages: ['openai'],
+
+  // 实验性功能
   experimental: {
-    serverComponentsExternalPackages: ['openai'],
   },
   
   // 图片优化配置
