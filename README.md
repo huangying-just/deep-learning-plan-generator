@@ -64,7 +64,7 @@
 - **前端框架**：Next.js 15.3.5 (App Router)
 - **UI 组件**：Shadcn/UI + Tailwind CSS
 - **TypeScript**：完整的类型支持
-- **AI 模型**：Google Gemini 1.5 Flash (via OpenRouter)
+- **AI 模型**：Google Gemini 2.5 Flash (via OpenRouter)
 - **Markdown 渲染**：react-markdown
 
 ## 📁 项目结构
