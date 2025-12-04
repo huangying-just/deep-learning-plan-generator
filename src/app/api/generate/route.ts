@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     // 调用 OpenRouter API
     const client = getClient();
     const response = await client.chat.completions.create({
-      model: "google/gemini-2.5-flash-lite-preview-06-17",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
